@@ -1,0 +1,497 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Python Quest · Лаборатория данных</title>
+<style>
+:root{--bg:#0d1020;--panel:#161a33;--panel2:#1e2346;--line:#2c3366;--txt:#e8eaff;--mut:#9aa0d0;--acc:#6ee7b7;--acc2:#818cf8;--warn:#fbbf24;--bad:#f87171}
+*{box-sizing:border-box}
+body{margin:0;background:radial-gradient(circle at 30% 0,#1b2150,#0d1020 60%);color:var(--txt);font:15px/1.55 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;min-height:100vh}
+header{display:flex;align-items:center;gap:16px;padding:12px 20px;border-bottom:1px solid var(--line);background:#0d1020cc;position:sticky;top:0;z-index:5;backdrop-filter:blur(6px)}
+header h1{font-size:18px;margin:0}
+.xp{margin-left:auto;display:flex;gap:10px;align-items:center}
+.bar{width:160px;height:10px;background:var(--panel2);border-radius:6px;overflow:hidden}
+.bar i{display:block;height:100%;background:linear-gradient(90deg,var(--acc2),var(--acc));width:0;transition:width .5s}
+.badge{padding:3px 10px;border-radius:20px;background:var(--panel2);font-size:13px;color:var(--mut)}
+.badge.ok{background:#064e3b;color:var(--acc)}
+main{display:grid;grid-template-columns:minmax(0,1.05fr) minmax(0,1fr);gap:18px;padding:18px;max-width:1500px;margin:0 auto}
+@media(max-width:980px){main{grid-template-columns:1fr}.lab{position:static!important}}
+/* ---------- Карта ---------- */
+.map{grid-column:1/-1;display:flex;gap:10px;overflow-x:auto;padding-bottom:4px}
+.node{flex:0 0 auto;min-width:130px;padding:10px 12px;border-radius:12px;background:var(--panel);border:1px solid var(--line);font-size:13px;cursor:default}
+.node b{display:block;font-size:14px}
+.node.open{border-color:var(--acc2);cursor:pointer;box-shadow:0 0 0 2px #818cf833}
+.node.done{border-color:var(--acc)}
+.node.locked{opacity:.45}
+.node small{color:var(--mut)}
+/* ---------- Лаборатория (псевдо-3D) ---------- */
+.lab{position:sticky;top:70px;align-self:start}
+.room{height:430px;perspective:900px;perspective-origin:50% 40%;position:relative;overflow:hidden;border-radius:16px;background:#070915;border:1px solid var(--line)}
+.wall,.floor,.side{position:absolute;transform-style:preserve-3d}
+.wall{left:8%;right:8%;top:6%;height:68%;background:linear-gradient(#232a5c,#1a1f45);border-radius:6px;transform:translateZ(-120px);display:flex;gap:8px;padding:30px 10px 10px;box-shadow:inset 0 0 40px #0008}
+.wall:before{content:"ВОРОНКА НАЙМА · СТЕНА ЛАБОРАТОРИИ";position:absolute;top:8px;left:0;right:0;text-align:center;font-size:11px;letter-spacing:2px;color:var(--mut)}
+.floor{left:-20%;right:-20%;bottom:-30%;height:60%;background:repeating-linear-gradient(90deg,#141a3a 0 2px,transparent 2px 60px),repeating-linear-gradient(0deg,#141a3a 0 2px,#0b0e22 2px 60px);transform:rotateX(75deg)}
+.side{left:0;top:6%;width:8%;height:68%;background:#151a3d;transform-origin:left;transform:rotateY(60deg)}
+.side.r{left:auto;right:0;transform-origin:right;transform:rotateY(-60deg)}
+.col{flex:1;background:#0f1330aa;border:1px dashed #3b4386;border-radius:6px;padding:6px 4px;min-width:0;display:flex;flex-direction:column;gap:5px}
+.col h4{margin:0 0 4px;font-size:11px;text-align:center;color:var(--acc2);text-transform:uppercase}
+.card{background:#f8fafc;color:#1e293b;border-radius:5px;padding:4px 6px;font-size:12px;position:relative;box-shadow:0 3px 0 #0005;animation:pop .45s ease both;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.card .ix{position:absolute;right:4px;top:3px;font-size:10px;color:#6366f1;font-family:ui-monospace,monospace}
+.card.hl{outline:3px solid var(--warn)}
+.card.new{background:#bbf7d0}
+@keyframes pop{from{transform:translateY(-30px) rotate(-8deg);opacity:0}to{transform:none;opacity:1}}
+.screen{position:absolute;left:12%;right:12%;bottom:4%;height:20%;background:#020617;border:2px solid #334155;border-radius:8px;font:12px/1.4 ui-monospace,Consolas,monospace;color:var(--acc);padding:6px 10px;overflow:auto;transform:rotateX(18deg);transform-origin:bottom;white-space:pre-wrap}
+.lab .cap{color:var(--mut);font-size:13px;margin:8px 2px}
+.demo{display:flex;flex-wrap:wrap;gap:6px;margin-top:8px}
+/* ---------- Урок ---------- */
+.lesson{background:var(--panel);border:1px solid var(--line);border-radius:16px;padding:18px}
+.tabs{display:flex;flex-wrap:wrap;gap:6px;margin-bottom:14px}
+.tab{padding:6px 11px;border-radius:9px;background:var(--panel2);border:1px solid transparent;color:var(--mut);cursor:pointer;font-size:13px}
+.tab.on{border-color:var(--acc2);color:var(--txt)}
+.tab.ok:after{content:" ✓";color:var(--acc)}
+h2{margin:.2em 0 .5em;font-size:22px}h3{margin:1.1em 0 .4em;font-size:17px;color:var(--acc)}
+code,pre{font-family:ui-monospace,Consolas,monospace}
+code{background:#0b0f26;padding:1px 5px;border-radius:4px;color:#c7d2fe}
+pre{background:#0b0f26;padding:10px 12px;border-radius:10px;overflow:auto;border:1px solid var(--line);margin:8px 0}
+.note{background:#1c2250;border-left:4px solid var(--acc2);padding:8px 12px;border-radius:8px;margin:10px 0}
+table.lines{width:100%;border-collapse:collapse;font-size:14px}
+table.lines td{border-top:1px solid var(--line);padding:6px;vertical-align:top}
+table.lines td:first-child{white-space:pre;font-family:ui-monospace,monospace;color:#c7d2fe;width:46%}
+textarea{width:100%;background:#0b0f26;color:var(--txt);border:1px solid var(--line);border-radius:10px;padding:10px;font:14px/1.5 ui-monospace,Consolas,monospace;resize:vertical}
+textarea.prose{font-family:inherit}
+button{background:var(--acc2);color:#0b0f26;border:0;border-radius:9px;padding:8px 14px;font-weight:600;cursor:pointer;font-size:14px}
+button.sec{background:var(--panel2);color:var(--txt);border:1px solid var(--line)}
+button:disabled{opacity:.5;cursor:not-allowed}
+.row{display:flex;gap:8px;flex-wrap:wrap;margin:8px 0}
+.fb{padding:10px 12px;border-radius:10px;margin-top:8px;white-space:pre-wrap}
+.fb.ok{background:#064e3b;color:#d1fae5}.fb.bad{background:#4c1d1d;color:#fee2e2}.fb.info{background:#1c2250}
+.ticket{background:#fffbeb;color:#422006;border-radius:12px;padding:14px;border:2px dashed #f59e0b}
+.ticket b{color:#92400e}
+details{background:var(--panel2);border-radius:10px;padding:8px 12px;margin:8px 0}
+.q{background:var(--panel2);border-radius:12px;padding:12px;margin:10px 0}
+.lockmsg{color:var(--warn);font-size:13px}
+.gate{margin-top:16px;padding:12px;border-radius:12px;background:#0b0f26;border:1px solid var(--line)}
+</style>
+</head>
+<body>
+<header>
+  <h1>🧪 Python Quest · Лаборатория данных</h1>
+  <span class="badge" id="status">Python загружается…</span>
+  <div class="xp"><span id="lvl" class="badge">Ур. 1</span><div class="bar"><i id="xpbar"></i></div><b id="xpnum">0 XP</b></div>
+</header>
+<main>
+  <nav class="map" id="map"></nav>
+  <section class="lesson" id="lesson"></section>
+  <aside class="lab">
+    <div class="room" id="room">
+      <div class="floor"></div><div class="side"></div><div class="side r"></div>
+      <div class="wall" id="wall"></div>
+      <div class="screen" id="screen">&gt;&gt;&gt; лаборатория готова. Реши задачу — и мир изменится.</div>
+    </div>
+    <div class="cap" id="cap">Стена — это список: каждая карточка лежит в своей ячейке, номер ячейки (индекс) — в правом верхнем углу.</div>
+    <div class="demo" id="demo"></div>
+  </aside>
+</main>
+
+<!-- Python-движок: Brython, лежит локально в vendor/ (работает без интернета) -->
+<script src="vendor/brython.js"></script>
+<script type="text/python" id="runner">
+from browser import window
+JSON = window.JSON
+
+class _Buf:
+    def __init__(self):
+        self.parts = []
+    def write(self, s):
+        self.parts.append(str(s))
+    def flush(self):
+        pass
+
+HINTS = {
+    "NameError": "Имя не найдено: опечатка или переменная ещё не создана.",
+    "IndexError": "Индекс вне списка. Помни: индексы начинаются с 0, последний — len(x) - 1 или -1.",
+    "TypeError": "Операция не подходит для этого типа данных.",
+    "SyntaxError": "Синтаксическая ошибка: проверь двоеточия, скобки, кавычки и отступы.",
+    "IndentationError": "Неверный отступ: тело цикла/условия сдвигается на 4 пробела.",
+    "AttributeError": "У объекта нет такого метода — проверь название (например, append).",
+}
+
+def py_run(src, checks_json, exports_json):
+    checks = [[str(c[0]), str(c[1])] for c in JSON.parse(checks_json)]
+    exports = [str(e) for e in JSON.parse(exports_json)]
+    res = {"ok": False, "stage": "run", "msg": "", "out": "", "vars": {}}
+    buf = _Buf()
+    def _print(*args, sep=" ", end="\n"):
+        buf.write(sep.join(str(a) for a in args) + end)
+    ns = {"__src__": src, "print": _print}
+    try:
+        if "???" in src:
+            res["msg"] = "В коде остались ??? — замени их своим решением."
+        else:
+            exec(src, ns)
+            res["stage"] = "check"
+            failed = None
+            for code, msg in checks:
+                try:
+                    exec(code, ns)
+                except AssertionError:
+                    failed = msg
+                    break
+            if failed is None:
+                res["ok"] = True
+            else:
+                res["msg"] = failed
+    except Exception as e:
+        name = type(e).__name__
+        res["msg"] = name + ": " + str(e) + "\n" + HINTS.get(name, "")
+    res["out"] = "".join(buf.parts)
+    for name in exports:
+        if name in ns:
+            v = ns[name]
+            if isinstance(v, (list, str, int, float, bool)):
+                res["vars"][name] = v
+    return JSON.stringify(res)
+
+window.pyRun = py_run
+window.pyReady = True
+</script>
+
+<script>
+/* ===================================================================
+   КОНТЕНТ КУРСА. Чтобы добавить урок: допиши объект в LESSONS
+   (те же поля, что у урока 1) и сними locked:true.
+   =================================================================== */
+const LESSONS = [
+{
+  id: 'lists', num: 1, module: 'Python', title: 'Списки', locked: false,
+  steps: [
+    { id: 'learn', tab: 'Понять', type: 'text', world: 'demo', html: `
+<h2>Урок 1. Списки: ряд ячеек на стене</h2>
+<p>Ты рекрутер, и у тебя 5 откликов на вакансию. Можно завести переменные <code>c1</code>, <code>c2</code>… — но завтра откликов станет 300. <b>Список</b> — это одна переменная, в которой лежит упорядоченный ряд значений. Именно так в Python хранят «пачку однотипных штук»: кандидатов, даты, суммы, строки выгрузки.</p>
+<div class="note">🧠 <b>Аналогия.</b> Список — это стена с пронумерованными ячейками (посмотри направо). В каждой ячейке одна карточка. Номер ячейки — <b>индекс</b>. Нумерация начинается с <b>0</b>, потому что индекс — это «сколько шагов от начала».</div>
+<pre>candidates = ["Анна", "Борис", "Вера", "Глеб", "Дина"]</pre>
+<h3>Индексы</h3>
+<p><code>candidates[0]</code> → <code>"Анна"</code>, <code>candidates[2]</code> → <code>"Вера"</code>. Отрицательный индекс считает с конца: <code>candidates[-1]</code> → <code>"Дина"</code>. Обращение к несуществующей ячейке (<code>candidates[5]</code>) даёт ошибку <code>IndexError</code>.</p>
+<h3>Длина: len()</h3>
+<p><code>len(candidates)</code> → <code>5</code>. Последний индекс всегда <code>len - 1</code>.</p>
+<h3>Срезы</h3>
+<p><code>candidates[1:3]</code> → <code>["Борис", "Вера"]</code>: от индекса 1 <b>включительно</b> до 3 <b>не включительно</b>. <code>[:3]</code> — первые три, <code>[2:]</code> — всё с третьего. Срез создаёт <b>новый</b> список, исходный не меняется.</p>
+<h3>Добавление: append()</h3>
+<p><code>candidates.append("Егор")</code> кладёт карточку в новую ячейку в конце. Метод ничего не возвращает — он меняет сам список.</p>
+<h3>Перебор в цикле</h3>
+<pre>for name in candidates:
+    print("Написать:", name)</pre>
+<p><code>for</code> по очереди кладёт в <code>name</code> каждую карточку — от индекса 0 до последнего.</p>
+<h3>Изменяемость</h3>
+<p>Список можно менять «на месте»: <code>candidates[1] = "Борис (отказ)"</code>, <code>append</code>, <code>remove</code>. Важно: <code>b = candidates</code> <b>не копирует</b> список — это второе имя той же стены. Изменишь <code>b</code> — изменится и <code>candidates</code>. Копия: <code>candidates.copy()</code> или <code>candidates[:]</code>.</p>
+<div class="note">👉 Нажимай кнопки под лабораторией: они показывают индексы, срез, append и цикл прямо на стене.</div>` },
+
+    { id: 'example', tab: 'Пример', type: 'example', world: 'example', html: `
+<h2>Разбор: отклики за неделю</h2>
+<p>Задача из жизни: из выгрузки откликов понять, сколько их, кто первый и кто последний, и отправить первым трём приглашение на скрининг.</p>`,
+      code: `responses = ["Анна", "Борис", "Вера", "Глеб", "Дина"]
+print("Всего откликов:", len(responses))
+print("Первый:", responses[0], "| последний:", responses[-1])
+to_screen = responses[:3]
+responses.append("Егор")
+for name in to_screen:
+    print("Приглашение на скрининг →", name)
+print("Теперь в списке:", len(responses))`,
+      lines: [
+        ['responses = [...]', 'Создаём список из 5 строк. Квадратные скобки, элементы через запятую.'],
+        ['len(responses)', 'Количество элементов — 5.'],
+        ['responses[0], responses[-1]', 'Первый (индекс 0) и последний (индекс −1, считаем с конца).'],
+        ['to_screen = responses[:3]', 'Срез: индексы 0, 1, 2. Это новый список, responses не изменился.'],
+        ['responses.append("Егор")', 'Пришёл новый отклик: список изменился на месте, теперь 6 элементов.'],
+        ['for name in to_screen:', 'Цикл проходит по трём именам; тело цикла — строка с отступом.'],
+        ['print(... len(responses))', '6 — потому что append изменил исходный список, а to_screen остался из 3.'],
+      ]},
+
+    { id: 't1', tab: 'Тренировка 1', type: 'task', xp: 20, world: 't1',
+      title: 'Кто первый, кто последний',
+      prompt: 'В список <code>candidates</code> попали отклики в порядке поступления. Заполни <code>first</code> — первого кандидата, <code>last</code> — последнего (через отрицательный индекс, не зная длины), <code>total</code> — их количество через функцию.',
+      starter: `candidates = ["Анна", "Борис", "Вера", "Глеб", "Дина"]
+
+first = ???
+last = ???
+total = ???
+print(first, last, total)`,
+      checks: [
+        ['assert first == candidates[0]', 'first — это не первый элемент. Первый индекс — 0, а не 1.'],
+        ['assert last == candidates[-1]', 'last — не последний элемент. Попробуй индекс, который считает с конца.'],
+        ['assert "-1" in __src__', 'Возьми последний через отрицательный индекс, а не числом 4 — завтра длина изменится.'],
+        ['assert total == 5', 'total должен быть равен числу элементов списка.'],
+        ['assert "len(" in __src__', 'Посчитай количество функцией, а не впиши число руками.'],
+      ],
+      hints: ['Индексы начинаются с 0.', 'Последний элемент: список[-1].', 'Количество: len(список).'],
+      exports: ['candidates', 'first', 'last', 'total'] },
+
+    { id: 't2', tab: 'Тренировка 2', type: 'task', xp: 25, world: 't2',
+      title: 'Скрининг и новый отклик',
+      prompt: 'Первые три кандидата из <code>pipeline</code> проходят скрининг — сохрани их в <code>screened</code> срезом. Затем пришёл новый отклик от <code>"Егор"</code> — добавь его в конец <code>pipeline</code>.',
+      starter: `pipeline = ["Анна", "Борис", "Вера", "Глеб", "Дина"]
+
+# первые три — на скрининг
+screened = ???
+
+# новый отклик в конец списка
+???
+
+print("Скрининг:", screened)
+print("Воронка:", pipeline)`,
+      checks: [
+        ['assert isinstance(screened, list)', 'screened должен быть списком — срез как раз возвращает список.'],
+        ['assert screened == ["Анна", "Борис", "Вера"]', 'В screened должны быть ровно первые три. Помни: правая граница среза не включается.'],
+        ['assert "[" in __src__.split("screened =")[1].split("\\n")[0] and ":" in __src__.split("screened =")[1].split("\\n")[0]', 'Получи screened срезом вида список[начало:конец], а не перечислением имён.'],
+        ['assert pipeline[-1] == "Егор"', 'Егор должен оказаться последним в pipeline. Какой метод добавляет в конец?'],
+        ['assert len(pipeline) == 6', 'В pipeline должно стать 6 элементов: 5 старых + Егор.'],
+        ['assert "Егор" not in screened', 'Егор попал в screened — значит, screened и pipeline оказались одним списком. Срез должен создавать копию.'],
+      ],
+      hints: ['Срез «первые три»: список[:3].', 'Добавить в конец: список.append(значение).'],
+      exports: ['pipeline', 'screened'] },
+
+    { id: 't3', tab: 'Тренировка 3', type: 'task', xp: 30, world: 't3',
+      title: 'Отклики по дням',
+      prompt: 'В <code>responses</code> — число откликов за каждый день недели. Посчитай в цикле сумму <code>total</code> (без функции <code>sum</code>) и собери в <code>busy_days</code> значения дней, где откликов было 3 и больше.',
+      starter: `responses = [3, 0, 7, 2, 5]
+
+total = 0
+for ??? in ???:
+    total = ???
+
+busy_days = []
+for n in responses:
+    if ???:
+        ???
+
+print("Всего:", total, "| загруженные дни:", busy_days)`,
+      checks: [
+        ['assert "sum(" not in __src__', 'Здесь тренируем цикл — посчитай сумму без sum().'],
+        ['assert total == 17', 'Сумма неверная. Внутри цикла к total нужно прибавлять текущий элемент: total = total + ...'],
+        ['assert busy_days == [3, 7, 5]', 'busy_days не совпадает. Условие: n >= 3, а добавлять нужно через append.'],
+        ['assert responses == [3, 0, 7, 2, 5]', 'Исходный список responses изменился — его трогать не нужно.'],
+      ],
+      hints: ['for n in responses:', 'Накопление: total = total + n.', 'Фильтр: if n >= 3: busy_days.append(n)'],
+      exports: ['responses', 'total', 'busy_days'] },
+
+    { id: 'self', tab: 'Сделай сам', type: 'task', self: true, xp: 60, world: 'self',
+      title: 'Тикет от Алины (рекрутер)',
+      prompt: `<div class="ticket"><b>🎫 Тикет HR-142 · от Алины</b><br>
+Привет! Выгрузила из ATS два списка одинаковой длины: <code>names</code> — имена, <code>statuses</code> — текущий этап каждого кандидата (i-й статус относится к i-му имени).<br>
+Нужно к планёрке:<br>
+1) <code>interview_names</code> — список имён тех, кто на этапе <code>"interview"</code>, в исходном порядке;<br>
+2) <code>interview_count</code> — сколько их;<br>
+3) списки <code>names</code> и <code>statuses</code> не должны измениться — они мне ещё нужны.<br>
+Данных будет больше, так что имена руками не вписывай 🙏</div>`,
+      starter: `names = ["Анна", "Борис", "Вера", "Глеб", "Дина", "Егор", "Жанна"]
+statuses = ["interview", "screening", "offer", "interview", "rejected", "interview", "screening"]
+`,
+      checks: [
+        ['assert "interview_names" in dir()', 'Не найдена переменная interview_names.'],
+        ['assert interview_names == ["Анна", "Глеб", "Егор"]', 'interview_names не совпадает с ожидаемым. Проверь, что берёшь имя с тем же индексом, что и статус, и сохраняешь порядок.'],
+        ['assert interview_count == 3', 'interview_count неверный — посчитай длину получившегося списка.'],
+        ['assert names == ["Анна", "Борис", "Вера", "Глеб", "Дина", "Егор", "Жанна"]', 'Список names изменился — Алина просила его не трогать.'],
+        ['assert statuses == ["interview", "screening", "offer", "interview", "rejected", "interview", "screening"]', 'Список statuses изменился — Алина просила его не трогать.'],
+        ['assert "for" in __src__', 'Данных станет больше — реши через цикл, а не перечислением имён.'],
+        ['assert "\\"Анна\\"" not in __src__.split("statuses =")[1] or __src__.count("Анна") == 1', 'Похоже, имена вписаны руками. Собери их из списков.'],
+      ],
+      hints: ['Тебе нужен индекс, чтобы связать имя и статус: подумай, как перебрать числа от 0 до len(names) - 1.'],
+      exports: ['names', 'statuses', 'interview_names', 'interview_count'],
+      explain: 'Объясни свой выбор: почему ты перебирал так, как перебирал (по индексам или иначе), и почему твоё решение не меняет names и statuses? Что сломалось бы, если бы ты написал result = names и удалял из result лишних?' },
+
+    { id: 'work', tab: 'В работе', type: 'text', world: 'work', html: `
+<h2>Где это в реальной работе</h2>
+<h3>1. Python-скрипты и выгрузки</h3>
+<p>CSV из ATS или Excel читается построчно — и строки складываются в список. Дальше всё как в уроке: <code>len</code>, срезы «первые 10 для проверки», фильтр в цикле.</p>
+<pre>rows = []
+with open("responses.csv", encoding="utf-8") as f:
+    for line in f:
+        rows.append(line.strip().split(";"))
+print(len(rows), rows[:3])</pre>
+<h3>2. pandas</h3>
+<p>Колонка таблицы <code>df["stage"]</code> — это <b>не список</b>, а объект <code>pandas.Series</code>: у него есть индекс, тип данных и векторные операции (<code>df["stage"] == "offer"</code> сравнит всю колонку сразу, без цикла). Но список тебе встретится постоянно: таблицу часто <b>создают</b> из списков, а <code>.tolist()</code> превращает Series обратно в обычный list — например, чтобы передать имена в письмо, в API или в SQL-запрос.</p>
+<pre>import pandas as pd
+df = pd.DataFrame({"name": names, "stage": statuses})   # из списков
+offer_names = df.loc[df["stage"] == "offer", "name"].tolist()  # Series → list</pre>
+<h3>3. SQL</h3>
+<p>Когда Python забирает результат запроса, <code>cursor.fetchall()</code> возвращает <b>список строк результата</b>. Формат одной строки зависит от драйвера: в <code>sqlite3</code> по умолчанию это кортежи (о них — в уроке 2), с <code>row_factory = sqlite3.Row</code> — объекты Row с доступом по имени колонки, а, например, в psycopg2 с <code>RealDictCursor</code> — словари. Но снаружи это всегда список, и к нему применимо всё из этого урока: <code>len(rows)</code>, <code>rows[0]</code>, цикл.</p>
+<pre>rows = cur.execute("SELECT name, stage FROM candidates").fetchall()
+print(len(rows), "строк; первая:", rows[0])</pre>
+<h3>4. DWH / ETL</h3>
+<p>При загрузке в хранилище данные редко льют по одной записи — их режут на <b>батчи</b> (пачки) срезами и отправляют пачкой:</p>
+<pre>BATCH = 1000
+for start in range(0, len(records), BATCH):
+    batch = records[start:start + BATCH]
+    load_to_dwh(batch)</pre>
+<div class="note">Итог: список — «транспорт» данных между скриптом, pandas, SQL и хранилищем.</div>` },
+
+    { id: 'interview', tab: 'Собеседование', type: 'interview', world: 'interview',
+      questions: [
+        { q: 'Что такое список в Python и когда вы его используете?', a: 'Список — упорядоченная изменяемая коллекция, элементы доступны по индексу с 0. Использую, когда нужен ряд значений в определённом порядке, который будет пополняться: строки выгрузки, имена кандидатов, батчи записей для загрузки. Для анализа больших таблиц беру pandas, а списки — для «транспорта» данных и небольших преобразований.' },
+        { q: 'Что значит «список изменяемый»? Приведите пример, где это может подвести.', a: 'Список можно менять на месте: append, remove, присваивание по индексу. Ловушка: b = a не копирует список, а даёт второе имя тому же объекту. Если удалить элемент из b, он пропадёт и из a. Поэтому, если исходные данные нужны, делаю копию: a.copy() или срез a[:], либо собираю новый список в цикле.' },
+        { q: 'Какова сложность доступа по индексу и проверки x in список? Что делать, если проверок много?', a: 'Доступ по индексу — O(1): Python сразу знает, где лежит элемент. Проверка x in список — O(n): элементы сравниваются по очереди. Если нужно часто проверять наличие (например, 100 000 email в чёрном списке), список лучше превратить в множество set — там проверка в среднем O(1). Множества — отдельный урок курса.' },
+        { q: 'Чем список отличается от кортежа?', a: 'Короткий ответ: кортеж похож на список, но неизменяемый. Подробно — когда его выбирать, почему он может быть ключом словаря и почему fetchall() в sqlite3 отдаёт строки кортежами — разберём в уроке 2 «Кортежи». Здесь достаточно назвать главное отличие — изменяемость.', preview: true },
+      ]},
+  ],
+},
+{ id: 'tuples', num: 2, module: 'Python', title: 'Кортежи', locked: true },
+{ id: 'dicts', num: 3, module: 'Python', title: 'Словари', locked: true },
+{ id: 'sets', num: 4, module: 'Python', title: 'Множества', locked: true },
+{ id: 'funcs', num: 5, module: 'Python', title: 'Функции', locked: true },
+{ id: 'pandas', num: 6, module: 'pandas', title: 'pandas: таблицы', locked: true },
+{ id: 'sql', num: 7, module: 'SQL', title: 'SQL: SELECT и JOIN', locked: true },
+{ id: 'dwh', num: 8, module: 'DWH', title: 'DWH: хранилища и ETL', locked: true },
+];
+
+/* =================== СОСТОЯНИЕ И ПРОГРЕСС =================== */
+const KEY = 'pyquest.v2';
+const S = Object.assign({ xp: 0, done: {}, code: {}, answers: {}, explain: {}, mastered: {}, step: {} }, JSON.parse(localStorage.getItem(KEY) || '{}'));
+const save = () => localStorage.setItem(KEY, JSON.stringify(S));
+let lesson = LESSONS[0];
+let stepIx = S.step[lesson.id] || 0;
+const $ = (id) => document.getElementById(id);
+const esc = (s) => String(s).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+
+function addXP(n) { S.xp += n; save(); renderXP(); }
+function renderXP() {
+  const lvl = Math.floor(S.xp / 100) + 1;
+  $('lvl').textContent = 'Ур. ' + lvl;
+  $('xpnum').textContent = S.xp + ' XP';
+  $('xpbar').style.width = (S.xp % 100) + '%';
+}
+
+/* =================== МИР: стена-воронка =================== */
+const COLS = ['Отклики', 'Скрининг', 'Интервью', 'Оффер'];
+function renderWall(cols, opts = {}) {
+  $('wall').innerHTML = COLS.map((t, ci) => `<div class="col"><h4>${t}</h4>${(cols[ci] || []).map((n, i) => {
+    const cls = ['card', (opts.hl || []).includes(ci + ':' + i) ? 'hl' : '', (opts.fresh || []).includes(n) ? 'new' : ''].join(' ');
+    return `<div class="${cls}" style="animation-delay:${i * 0.07}s">${esc(n)}<span class="ix">${opts.noIx ? '' : '[' + i + ']'}</span></div>`;
+  }).join('')}</div>`).join('');
+}
+function screen(t) { $('screen').textContent = t; }
+const BASE = ['Анна', 'Борис', 'Вера', 'Глеб', 'Дина'];
+const DEMOS = {
+  'Индексы': () => { renderWall([BASE]); screen('candidates[0] → "Анна"\ncandidates[-1] → "Дина"'); renderWall([BASE], { hl: ['0:0', '0:4'] }); },
+  'len()': () => { renderWall([BASE]); screen('len(candidates) → 5\nпоследний индекс = 5 - 1 = 4'); },
+  'Срез [1:3]': () => { renderWall([BASE, BASE.slice(1, 3)], { hl: ['0:1', '0:2'] }); screen('candidates[1:3] → ["Борис", "Вера"]\n3 не включается; исходный список не изменился'); },
+  'append()': () => { renderWall([[...BASE, 'Егор']], { fresh: ['Егор'] }); screen('candidates.append("Егор")\nlen(candidates) → 6'); },
+  'Цикл for': async () => { for (let i = 0; i < BASE.length; i++) { renderWall([BASE], { hl: ['0:' + i] }); screen('for name in candidates:\n    name = "' + BASE[i] + '"   # шаг ' + (i + 1)); await new Promise(r => setTimeout(r, 650)); } },
+  'Изменяемость': () => { renderWall([['Анна', 'Борис (отказ)', 'Вера', 'Глеб', 'Дина']], { hl: ['0:1'] }); screen('b = candidates      # то же самое, не копия!\nb[1] = "Борис (отказ)"\ncandidates[1] → "Борис (отказ)"'); },
+};
+function worldFor(step) {
+  $('demo').innerHTML = '';
+  if (step.world === 'demo') {
+    Object.keys(DEMOS).forEach(k => { const b = document.createElement('button'); b.className = 'sec'; b.textContent = k; b.onclick = DEMOS[k]; $('demo').appendChild(b); });
+    renderWall([BASE]); screen('>>> нажимай кнопки ниже — стена покажет операцию');
+  } else if (step.type === 'task' && !S.done[step.id]) {
+    renderWall([]); screen('>>> ' + step.title + ': стена ждёт твоего кода…');
+  } else if (step.type !== 'task') {
+    renderWall(lastWorld.cols || [BASE], { noIx: true }); screen(lastWorld.text || '>>> лаборатория');
+  }
+}
+let lastWorld = {};
+/* Код ученика меняет мир: что появится на стене после успешной проверки */
+const WORLD_UPDATE = {
+  t1: v => { renderWall([v.candidates], { hl: ['0:0', '0:' + (v.candidates.length - 1)] }); return `first = ${v.first}, last = ${v.last}, total = ${v.total}\nкарточки повешены на стену`; },
+  t2: v => { const rest = v.pipeline.filter(n => !v.screened.includes(n)); renderWall([rest, v.screened], { fresh: ['Егор'] }); return `на скрининг: ${v.screened.join(', ')}\nв откликах новый: Егор`; },
+  t3: v => { const bars = v.responses.map((n, i) => ['Пн', 'Вт', 'Ср', 'Чт', 'Пт'][i] + ' ' + '█'.repeat(n) + ' ' + n).join('\n'); return bars + `\nвсего ${v.total}, загруженные дни: ${v.busy_days.join(', ')}`; },
+  self: v => { const col = s => v.names.filter((_, i) => v.statuses[i] === s); const cols = [[], col('screening'), v.interview_names, col('offer')]; renderWall(cols, { fresh: v.interview_names }); lastWorld = { cols, text: 'тикет HR-142 закрыт ✓' }; return `interview_names = ${JSON.stringify(v.interview_names)}\ninterview_count = ${v.interview_count}\nворонка разложена по стене ✓`; },
+};
+
+/* =================== РЕНДЕР УРОКА =================== */
+function renderMap() {
+  $('map').innerHTML = LESSONS.map(l => `<div class="node ${l.locked ? 'locked' : 'open'} ${S.mastered[l.id] ? 'done' : ''}" title="${l.locked ? 'Откроется после освоения предыдущих уроков' : ''}"><small>${l.module} · урок ${l.num}</small><b>${l.locked ? '🔒 ' : S.mastered[l.id] ? '🏅 ' : '▶ '}${l.title}</b></div>`).join('');
+}
+function stepDone(st) {
+  if (st.type === 'task') return !!S.done[st.id] && (!st.explain || (S.explain[st.id] || '').trim().length >= 80);
+  if (st.type === 'interview') return st.questions.some((q, i) => !q.preview && (S.answers[st.id + i] || '').trim().length >= 40);
+  return !!S.done[st.id];
+}
+function renderLesson() {
+  const st = lesson.steps[stepIx];
+  if (st.type === 'text' || st.type === 'example') { if (!S.done[st.id]) { S.done[st.id] = true; save(); } }
+  S.step[lesson.id] = stepIx; save();
+  const tabs = lesson.steps.map((s, i) => `<span class="tab ${i === stepIx ? 'on' : ''} ${stepDone(s) ? 'ok' : ''}" data-i="${i}">${s.tab}</span>`).join('');
+  let body = '';
+  if (st.type === 'text') body = st.html;
+  if (st.type === 'example') body = st.html + `<pre>${esc(st.code)}</pre><div class="row"><button id="runEx">▶ Запустить пример</button></div><div id="fb"></div>
+    <h3>Построчно</h3><table class="lines">${st.lines.map(([c, t]) => `<tr><td>${esc(c)}</td><td>${t}</td></tr>`).join('')}</table>`;
+  if (st.type === 'task') body = `<h2>${st.self ? '🛠 Сделай сам: ' : '🏋 '}${st.title} <span class="badge">+${st.xp} XP</span></h2><p>${st.prompt}</p>
+    <textarea id="code" rows="14" spellcheck="false">${esc(S.code[st.id] ?? st.starter)}</textarea>
+    <div class="row"><button id="run">▶ Проверить</button><button class="sec" id="hint">💡 Подсказка</button><button class="sec" id="reset">↺ Сбросить</button></div><div id="fb"></div>
+    ${st.explain ? `<div class="gate"><b>🗣 Объясни выбор</b> <small class="lockmsg">(обязательно для освоения урока, от 80 символов)</small><p>${st.explain}</p><textarea id="explain" class="prose" rows="4" ${S.done[st.id] ? '' : 'disabled placeholder="Сначала пройди автопроверки"'}>${esc(S.explain[st.id] || '')}</textarea><div class="row"><button id="saveExp" ${S.done[st.id] ? '' : 'disabled'}>Сохранить объяснение</button></div><div id="fbExp"></div></div>` : ''}`;
+  if (st.type === 'interview') body = `<h2>🎤 Как ответить на собеседовании</h2><p>Сначала ответь своими словами (минимум 40 символов) — образец ответа откроется только после попытки. Сравни и допиши то, что упустил.</p>` +
+    st.questions.map((q, i) => { const k = st.id + i, a = S.answers[k] || '', open = a.trim().length >= 40; return `<div class="q"><b>${i + 1}. ${q.q}</b>${q.preview ? ' <span class="badge">анонс урока 2</span>' : ''}
+      <textarea class="prose ans" data-k="${k}" rows="3" placeholder="Твой ответ…">${esc(a)}</textarea>
+      <div class="row"><button class="sec chk" data-k="${k}">Ответить</button></div>
+      ${open ? `<details open><summary>Образец ответа</summary>${q.a}</details>` : '<div class="lockmsg">🔒 Образец откроется после твоего ответа</div>'}</div>`; }).join('');
+  body += masteryBlock();
+  $('lesson').innerHTML = `<div class="tabs">${tabs}</div>${body}<div class="row" style="justify-content:space-between;margin-top:16px"><button class="sec" id="prev" ${stepIx ? '' : 'disabled'}>← Назад</button><button id="next" ${stepIx < lesson.steps.length - 1 ? '' : 'disabled'}>Дальше →</button></div>`;
+  bind(st);
+  worldFor(st);
+  renderMap();
+}
+function masteryBlock() {
+  const self = lesson.steps.find(s => s.self), iv = lesson.steps.find(s => s.type === 'interview');
+  const a = stepDone(self), b = stepDone(iv);
+  if (a && b && !S.mastered[lesson.id]) { S.mastered[lesson.id] = true; save(); addXP(50); }
+  if (S.mastered[lesson.id]) return `<div class="gate"><span class="badge ok">🏅 Урок «${lesson.title}» освоен</span> Следующие уроки появятся на карте в следующих версиях курса.</div>`;
+  return `<div class="gate"><b>Урок засчитывается как освоенный, когда:</b><br>${a ? '✅' : '⬜'} решён «Сделай сам» и написано объяснение выбора<br>${b ? '✅' : '⬜'} дан ответ хотя бы на один вопрос собеседования (кроме анонса)</div>`;
+}
+function bind(st) {
+  document.querySelectorAll('.tab').forEach(t => t.onclick = () => { stepIx = +t.dataset.i; renderLesson(); });
+  $('prev').onclick = () => { stepIx--; renderLesson(); };
+  $('next').onclick = () => { stepIx++; renderLesson(); };
+  if (st.type === 'example') $('runEx').onclick = () => { const r = runPy(st.code, [], []); fb(r.ok ? 'info' : 'bad', r.out || r.msg); screen(r.out); };
+  if (st.type === 'task') {
+    let h = 0;
+    $('code').oninput = e => { S.code[st.id] = e.target.value; save(); };
+    $('reset').onclick = () => { delete S.code[st.id]; save(); renderLesson(); };
+    $('hint').onclick = () => { fb('info', '💡 ' + st.hints[Math.min(h, st.hints.length - 1)]); h++; };
+    $('run').onclick = () => checkTask(st);
+    if (st.explain) $('saveExp').onclick = () => {
+      const t = $('explain').value.trim(); S.explain[st.id] = t; save();
+      $('fbExp').innerHTML = t.length >= 80 ? '<div class="fb ok">Объяснение сохранено ✓</div>' : `<div class="fb bad">Слишком коротко (${t.length}/80). Объясни, почему выбрал такой способ перебора и как сохранил исходные списки.</div>`;
+      renderLesson();
+    };
+  }
+  if (st.type === 'interview') document.querySelectorAll('.chk').forEach(b => b.onclick = () => {
+    const ta = document.querySelector(`.ans[data-k="${b.dataset.k}"]`); const t = ta.value.trim();
+    if (t.length < 40) { alert('Ответь чуть подробнее (минимум 40 символов) — как на настоящем собеседовании.'); return; }
+    if (!S.answers[b.dataset.k]) addXP(10);
+    S.answers[b.dataset.k] = t; save(); renderLesson();
+  });
+}
+function fb(kind, text) { $('fb').innerHTML = `<div class="fb ${kind}">${esc(text)}</div>`; }
+function runPy(src, checks, exports) {
+  if (!window.pyReady) return { ok: false, msg: 'Python ещё загружается, подожди пару секунд.', out: '', vars: {} };
+  return JSON.parse(window.pyRun(src, JSON.stringify(checks), JSON.stringify(exports)));
+}
+function checkTask(st) {
+  const r = runPy($('code').value, st.checks, st.exports);
+  if (r.ok) {
+    const first = !S.done[st.id];
+    S.done[st.id] = true; save();
+    if (first) addXP(st.xp);
+    const t = WORLD_UPDATE[st.world] ? WORLD_UPDATE[st.world](r.vars) : '';
+    screen((r.out ? r.out + '\n' : '') + t);
+    if (st.world !== 'self') lastWorld = { text: t };
+    renderLesson();
+    fb('ok', '✅ Все проверки пройдены!' + (first ? ` +${st.xp} XP` : '') + (r.out ? '\n\nВывод:\n' + r.out : '') + (st.explain ? '\n\nТеперь объясни свой выбор ниже 👇' : ''));
+  } else {
+    fb('bad', '❌ ' + r.msg + (r.out ? '\n\nВывод программы:\n' + r.out : ''));
+    screen('>>> проверка не пройдена — стена не изменилась');
+  }
+  window.lastResult = r;
+}
+
+/* =================== СТАРТ =================== */
+window.addEventListener('load', () => {
+  renderXP(); renderLesson();
+  /* Brython сам запускает <script type="text/python"> после загрузки страницы */
+  const t = setInterval(() => { if (window.pyReady) { clearInterval(t); $('status').textContent = 'Python готов ✓'; $('status').classList.add('ok'); } }, 200);
+});
+</script>
+</body>
+</html>
