@@ -1,0 +1,579 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<title>Python Quest 3D — Урок 1: Списки</title>
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<style>
+*{box-sizing:border-box}
+body{margin:0;overflow:hidden;background:#0a0e14;font-family:'Segoe UI',system-ui,sans-serif;color:#e6f7ff}
+#scene{position:fixed;inset:0}
+#crosshair{position:fixed;left:50%;top:50%;width:6px;height:6px;margin:-3px;border-radius:50%;background:rgba(88,230,217,.9);pointer-events:none;z-index:5}
+.panel{position:fixed;background:rgba(10,16,26,.92);border:1px solid rgba(88,230,217,.35);border-radius:12px;box-shadow:0 8px 40px rgba(0,0,0,.5)}
+#hud{position:fixed;top:0;left:0;right:0;display:flex;justify-content:space-between;padding:10px 16px;z-index:6;pointer-events:none;font-size:14px;letter-spacing:.4px}
+#hud b{color:#58e6d9}
+#objective{left:14px;top:52px;width:330px;padding:14px 16px;z-index:6;font-size:14px;line-height:1.45}
+#objective h3{margin:0 0 6px;font-size:12px;color:#58e6d9;text-transform:uppercase;letter-spacing:1px}
+#objective code,#modal-card code{background:#16223a;padding:1px 6px;border-radius:5px;color:#ffd479;font-family:Consolas,monospace;font-size:13px}
+#objective button{margin-top:10px}
+button{background:linear-gradient(135deg,#1b6f66,#115e59);color:#eafffd;border:1px solid rgba(88,230,217,.5);border-radius:8px;padding:8px 14px;font-size:14px;cursor:pointer;font-weight:600}
+button:hover{filter:brightness(1.25)}
+#terminal{left:50%;bottom:14px;transform:translateX(-50%);width:min(780px,95vw);z-index:8;padding:10px 12px}
+#term-head{display:flex;justify-content:space-between;font-size:12px;color:#8fa3c8;letter-spacing:1px;margin-bottom:6px}
+#term-out{height:150px;overflow-y:auto;background:#070b12;border:1px solid #1c2a44;border-radius:8px;padding:8px 10px;font-family:Consolas,monospace;font-size:13px;line-height:1.5}
+.tl{white-space:pre-wrap;word-break:break-word}
+.echo{color:#58e6d9}.out{color:#e6f7ff}.ok{color:#7ee787}.err{color:#ff7b72}.warn{color:#ffd479}.info{color:#8fa3c8;font-style:italic}
+#code{width:100%;margin-top:8px;background:#070b12;color:#e6f7ff;border:1px solid #1c2a44;border-radius:8px;padding:8px 10px;font-family:Consolas,monospace;font-size:14px;resize:vertical}
+#term-btns{display:flex;gap:8px;margin-top:8px}
+#term-btns button{font-size:13px;padding:6px 10px}
+#blocker{position:fixed;inset:0;background:rgba(6,9,15,.86);z-index:20;display:flex;align-items:center;justify-content:center;cursor:pointer}
+#start-card{max-width:580px;text-align:center;padding:34px 40px;border:1px solid rgba(88,230,217,.4);border-radius:16px;background:rgba(10,16,26,.95)}
+#start-card h1{margin:0 0 8px;color:#58e6d9;font-size:28px}
+#start-card p{color:#b9c6de;font-size:15px;line-height:1.55}
+.keys{display:flex;gap:14px;justify-content:center;margin:16px 0;color:#8fa3c8;font-size:13px;flex-wrap:wrap}
+.keys b{color:#ffd479}
+#modal{position:fixed;inset:0;background:rgba(6,9,15,.82);z-index:15;display:flex;align-items:center;justify-content:center}
+#modal-card{max-width:660px;max-height:84vh;overflow-y:auto;background:rgba(10,16,26,.97);border:1px solid rgba(88,230,217,.45);border-radius:16px;padding:26px 30px;font-size:15px;line-height:1.6}
+#modal-card h2{margin-top:0;color:#58e6d9}
+.opt{display:block;width:100%;text-align:left;margin:8px 0;background:#131c2e;border:1px solid #26375c;color:#e6f7ff;font-weight:400}
+.opt:hover{border-color:#58e6d9;filter:none}
+.opt.right{border-color:#7ee787;background:#12321f}
+.opt.wrong{border-color:#ff7b72;background:#3a1414}
+.hidden{display:none!important}
+#toast{position:fixed;top:60px;left:50%;transform:translateX(-50%);background:#12321f;border:1px solid #7ee787;color:#7ee787;padding:8px 18px;border-radius:20px;z-index:30;font-weight:600;opacity:0;transition:opacity .3s;pointer-events:none}
+#hintbar{position:fixed;bottom:14px;right:16px;color:#5b6b8c;font-size:12px;z-index:5}
+</style>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/PointerLockControls.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/brython@3.12.0/brython.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/brython@3.12.0/brython_stdlib.min.js"></script>
+</head>
+<body>
+<div id="scene"></div>
+<div id="crosshair"></div>
+<div id="hud"><div><b>PYTHON QUEST 3D</b> · Урок 1: Списки (list)</div><div id="xp">XP 0</div></div>
+<div id="objective" class="panel"></div>
+<div id="toast"></div>
+<div id="terminal" class="panel hidden">
+  <div id="term-head"><span>ТЕРМИНАЛ PYTHON (настоящий интерпретатор)</span><span id="term-status">загрузка…</span></div>
+  <div id="term-out"></div>
+  <textarea id="code" rows="4" spellcheck="false" placeholder="# пиши код здесь, Ctrl+Enter — выполнить"></textarea>
+  <div id="term-btns">
+    <button id="run">▶ Выполнить (Ctrl+Enter)</button>
+    <button id="hint">💡 Подсказка</button>
+    <button id="solve">Показать решение</button>
+  </div>
+</div>
+<div id="blocker">
+  <div id="start-card">
+    <h1>ЛАБОРАТОРИЯ ДАННЫХ</h1>
+    <p>Ты — начинающий аналитик. Код, который ты пишешь в терминале, <b style="color:#58e6d9">физически меняет лабораторию</b>: список — это стеллаж перед тобой, каждый элемент — коробка в пронумерованной ячейке.</p>
+    <div class="keys"><span><b>WASD</b> — движение</span><span><b>Мышь</b> — обзор</span><span><b>TAB</b> — терминал</span><span><b>ESC</b> — курсор</span><span><b>Shift</b> — бег</span></div>
+    <button id="play" style="font-size:18px;padding:12px 34px">▶ НАЧАТЬ УРОК</button>
+  </div>
+</div>
+<div id="modal" class="hidden"><div id="modal-card"></div></div>
+<div id="hintbar">TAB — терминал · WASD — движение · ESC — курсор</div>
+
+<script type="text/python">
+from browser import window
+import sys, json
+
+NS = {}
+
+class _Out:
+    def __init__(self):
+        self.buf = []
+    def write(self, s):
+        self.buf.append(s)
+    def flush(self):
+        pass
+
+VARS = ["sales", "rows", "total", "avg", "inventory", "data", "xs", "items", "result"]
+
+def _snapshot(ns):
+    snap = {}
+    for name in VARS:
+        if name in ns:
+            try:
+                snap[name] = json.loads(json.dumps(ns[name]))
+            except Exception:
+                pass
+    return snap
+
+def run_steps(src, reset):
+    if reset:
+        NS.clear()
+    out = _Out()
+    old = sys.stdout
+    sys.stdout = out
+    frames = []
+    error = None
+    buf = ""
+    for raw in src.split("\n"):
+        line = raw.rstrip()
+        if not line.strip() or line.strip().startswith("#"):
+            continue
+        buf = (buf + "\n" + line) if buf else line
+        try:
+            code = compile(buf, "<​user>", "exec")
+        except SyntaxError as e:
+            m = str(e)
+            if "EOF" in m or "indent" in m.lower() or "block" in m.lower():
+                continue
+            error = {"line": buf, "msg": m}
+            break
+        try:
+            exec(code, NS)
+        except Exception as e:
+            error = {"line": buf, "msg": str(e)}
+            break
+        frames.append({"src": buf, "vars": _snapshot(NS), "printed": "".join(out.buf)})
+        out.buf = []
+        buf = ""
+    if buf and error is None:
+        error = {"line": buf, "msg": "Неполная конструкция — проверь скобки и отступы"}
+    sys.stdout = old
+    return json.dumps({"frames": frames, "error": error})
+
+window.run_steps = run_steps
+</script>
+
+<script>
+/* ================= КОНТЕНТ УРОКА ================= */
+const THEORY_HTML = `
+<h2>Урок 1 · Списки (list)</h2>
+<p><b>Что это:</b> упорядоченная <b>изменяемая</b> коллекция. Записывается в квадратных скобках: <code>sales = [120, 95, 130]</code>.</p>
+<p><b>Аналогия:</b> стеллаж с пронумерованными ячейками. Нумерация — <b>с нуля</b>: первый элемент — <code>sales[0]</code>. Можно докладывать (<code>append</code>), вынимать (<code>pop</code>), заменять по номеру ячейки (<code>sales[1] = 195</code>), считать (<code>len</code>, <code>sum</code>).</p>
+<p><b>Где это в работе аналитика:</b> выручка по дням, клики по часам — любой ряд метрик; результат SQL-запроса <code>cursor.fetchall()</code> приходит как <b>список кортежей</b>; колонка pandas DataFrame по сути — список.</p>
+<p><b>Чем список НЕ является:</b> это не словарь (нет имён у ячеек, только номера) и не кортеж (список можно менять).</p>
+<p style="color:#8fa3c8">Сейчас ты окажешься в лаборатории. Каждую операцию ты <b>увидишь</b> на стеллаже перед собой — так список запоминается телом, а не зубрёжкой.</p>
+<button id="theoryGo" style="font-size:16px;padding:10px 26px">В лабораторию ▶</button>`;
+
+const DEMO = [
+ {code:"sales = [120, 95, 130]", cap:"Появились 3 коробки — элементы списка. Порядок сохраняется, индексы 0, 1, 2."},
+ {code:"sales.append(88)",        cap:"append() докладывает элемент в КОНЕЦ стеллажа — ячейка №3."},
+ {code:"sales[1] = 195",          cap:"Обращение по индексу: ячейка №1 (второй элемент!) заменена на 195."},
+ {code:"sales.pop(0)",            cap:"pop(0) убрал первый элемент — остальные сдвинулись, индексы пересчитались."},
+ {code:"print(sum(sales))",       cap:"sum() прошёл по всему стеллажу и сложил значения."}
+];
+
+const TASKS = [
+ {goal:`Создай список <code>sales</code> — продажи за 3 дня: 120, 95, 130.`,
+  starter:"sales = [120, 95, 130]",
+  hint:"Квадратные скобки, элементы через запятую.",
+  solution:"sales = [120, 95, 130]",
+  why:"Любая метрика за период — это список: выручка по дням, клики по часам.",
+  check:v=>eq(v.sales,[120,95,130])},
+ {goal:`Пришли данные за 4-й день — 88. Добавь их в конец через <code>append()</code>.`,
+  starter:"sales.append(88)",
+  hint:"Метод вызывается через точку: список.append(значение).",
+  solution:"sales.append(88)",
+  why:"append — самая частая операция при сборе данных: каждая новая строка из API или CSV добавляется в список.",
+  check:v=>v.sales && v.sales.length===4 && v.sales[3]===88},
+ {goal:`В данных за 2-й день ошибка: было не 95, а 195. Исправь элемент с индексом 1.`,
+  starter:"sales[1] = 195",
+  hint:"Нумерация с нуля: второй день — индекс 1.",
+  solution:"sales[1] = 195",
+  why:"В реальных данных постоянно правят отдельные значения — доступ по индексу это база.",
+  check:v=>v.sales && v.sales.length===4 && v.sales[1]===195},
+ {goal:`Первый день (индекс 0) собран некорректно. Удали его: <code>pop(0)</code>.`,
+  starter:"sales.pop(0)",
+  hint:"pop(индекс) вынимает элемент и возвращает его.",
+  solution:"sales.pop(0)",
+  why:"Удаление некорректных записей — ежедневная чистка данных аналитика.",
+  check:v=>eq(v.sales,[195,130,88])},
+ {goal:`Посчитай сумму продаж, сохрани в переменную <code>total</code> и выведи через <code>print()</code>.`,
+  starter:"total = sum(sales)\nprint(total)",
+  hint:"Две строки: присвоить в переменную, затем напечатать.",
+  solution:"total = sum(sales)\nprint(total)",
+  why:"Агрегация списка (sum, len, max, min) — первый шаг любого отчёта.",
+  check:(v,p)=>v.total===413 && p.indexOf("413")>-1}
+];
+
+const CASE = {
+ goal:`<b>Реальный кейс.</b> Ты выполнил SQL-запрос, и база вернула результат через <code>fetchall()</code> — список кортежей <code>rows</code> (месяц, продажи). Именно так данные приходят из базы в Python. Посчитай <b>среднее</b> продаж и сохрани в переменную <code>avg</code>.`,
+ starter:"rows = [('Янв', 120), ('Фев', 195), ('Мар', 130)]\n# второй элемент кортежа: rows[0][1]\n",
+ hint:"Сумма вторых элементов, делённая на 3. Доступ: rows[0][1], rows[1][1], rows[2][1].",
+ solution:"rows = [('Янв', 120), ('Фев', 195), ('Мар', 130)]\navg = (rows[0][1] + rows[1][1] + rows[2][1]) / 3\nprint(avg)",
+ why:"cursor.fetchall() → список кортежей. В pandas это превращается в DataFrame одной строкой: pd.DataFrame(rows).",
+ check:v=>typeof v.avg==="number" && Math.abs(v.avg-148.333)<0.5
+};
+
+const QUIZ = [
+ {q:"Главное отличие списка (list) от кортежа (tuple)?",
+  opts:["Список можно изменять, кортеж — нельзя","Кортеж всегда быстрее","Список хранит только числа","Ничем не отличаются"],
+  a:0, why:"Изменяемость — ключевое отличие. Кортеж — «стеллаж под стеклом»: его используют, чтобы данные нельзя было случайно испортить. Это вопрос №1 про коллекции на интервью."},
+ {q:"Код:\na = [1, 2]\nb = a\nb.append(3)\nЧто окажется в переменной a?",
+  opts:["[1, 2]","[1, 2, 3]","Ошибка","[3]"],
+  a:1, why:"b = a НЕ копирует список — это вторая табличка на тот же стеллаж. Изменил через b — изменилось и в a. Копия делается так: b = a.copy(). Классическая ловушка на собеседовании."},
+ {q:"Ты сделал SELECT к базе через cursor.fetchall(). Что вернётся?",
+  opts:["Словарь","Одна строка","Список кортежей","DataFrame"],
+  a:2, why:"Стандарт Python DB-API: fetchall() возвращает список кортежей — по кортежу на строку. В DataFrame его превращают отдельно: pd.DataFrame(rows)."}
+];
+
+/* ================= СОСТОЯНИЕ ================= */
+let mode="start", taskIdx=0, quizIdx=0, xp=0, started=false, pyReady=false, busy=false;
+let shelfState=[]; const shelfBoxes=[]; const anims=[];
+const el=id=>document.getElementById(id);
+const eq=(a,b)=>JSON.stringify(a)===JSON.stringify(b);
+const sleep=ms=>new Promise(r=>setTimeout(r,ms));
+
+/* ================= 3D СЦЕНА ================= */
+let scene,camera,renderer,controls,boardC,boardTex;
+const keys={}; const vel=new THREE.Vector3(); const dirV=new THREE.Vector3(); let prevT=performance.now();
+
+function textCanvas(txt,{w=1024,h=256,font="bold 96px monospace",fg="#e6f7ff",bg="#14203a",sub=null}={}){
+  const c=document.createElement("canvas");c.width=w;c.height=h;const g=c.getContext("2d");
+  g.fillStyle=bg;g.fillRect(0,0,w,h);
+  g.strokeStyle="rgba(88,230,217,.55)";g.lineWidth=8;g.strokeRect(6,6,w-12,h-12);
+  g.fillStyle=fg;g.font=font;g.textAlign="center";g.textBaseline="middle";
+  g.fillText(txt,w/2,sub?h/2-34:h/2);
+  if(sub){g.font="44px monospace";g.fillStyle="#8fa3c8";g.fillText(sub,w/2,h/2+60);}
+  return c;
+}
+function signPlane(txt,sub,w,h){
+  const tex=new THREE.CanvasTexture(textCanvas(txt,{sub}));
+  return new THREE.Mesh(new THREE.PlaneGeometry(w,h),new THREE.MeshBasicMaterial({map:tex}));
+}
+function boxMesh(w,h,d,color,x,y,z,rough){
+  const m=new THREE.Mesh(new THREE.BoxGeometry(w,h,d),
+    new THREE.MeshStandardMaterial({color,roughness:rough==null?.7:rough,metalness:.15}));
+  m.position.set(x,y,z); scene.add(m); return m;
+}
+function fmtVal(v){ if(typeof v==="string")return v.length>8?v.slice(0,7)+"…":v; return String(v); }
+function boxTexture(txt){
+  const c=document.createElement("canvas");c.width=256;c.height=256;const g=c.getContext("2d");
+  g.fillStyle="#1d2b45";g.fillRect(0,0,256,256);
+  g.strokeStyle="rgba(88,230,217,.8)";g.lineWidth=10;g.strokeRect(8,8,240,240);
+  g.fillStyle="#ffd479";g.font="bold 64px monospace";g.textAlign="center";g.textBaseline="middle";
+  g.fillText(txt,128,128);
+  return new THREE.CanvasTexture(c);
+}
+function easeOutBack(k){const c=1.70158;return 1+(c+1)*Math.pow(k-1,3)+c*Math.pow(k-1,2);}
+
+function buildWorld(){
+  scene=new THREE.Scene();
+  scene.background=new THREE.Color(0x0a0e14);
+  scene.fog=new THREE.Fog(0x0a0e14,12,28);
+  camera=new THREE.PerspectiveCamera(72,innerWidth/innerHeight,.1,100);
+  camera.position.set(0,1.7,4.6);
+  renderer=new THREE.WebGLRenderer({antialias:true});
+  renderer.setSize(innerWidth,innerHeight);
+  renderer.setPixelRatio(Math.min(devicePixelRatio,2));
+  el("scene").appendChild(renderer.domElement);
+  controls=new THREE.PointerLockControls(camera,document.body);
+  controls.addEventListener("lock",()=>el("blocker").classList.add("hidden"));
+  controls.addEventListener("unlock",refreshBlocker);
+
+  scene.add(new THREE.HemisphereLight(0x8899bb,0x1a2233,.95));
+  const p1=new THREE.PointLight(0x66ffe0,.85,14); p1.position.set(0,3.6,-4.2); scene.add(p1);
+  const p2=new THREE.PointLight(0xffaa55,.55,12); p2.position.set(0,3.6,4.5); scene.add(p2);
+
+  const floor=new THREE.Mesh(new THREE.PlaneGeometry(14,14),
+    new THREE.MeshStandardMaterial({color:0x0f1520,roughness:.9,metalness:.1}));
+  floor.rotation.x=-Math.PI/2; scene.add(floor);
+  const grid=new THREE.GridHelper(14,14,0x1e2a3a,0x141c28); grid.position.y=.01; scene.add(grid);
+  const wallMat=new THREE.MeshStandardMaterial({color:0x131b29,roughness:.85});
+  [[0,2,-7,0],[0,2,7,Math.PI],[-7,2,0,Math.PI/2],[7,2,0,-Math.PI/2]].forEach(([x,y,z,r])=>{
+    const w=new THREE.Mesh(new THREE.PlaneGeometry(14,4),wallMat.clone());
+    w.position.set(x,y,z); w.rotation.y=r; scene.add(w);
+  });
+
+  const title=signPlane("ЛАБОРАТОРИЯ ДАННЫХ","python · sql · dwh — путь в аналитику",9,2.2);
+  title.position.set(0,3.35,-6.9); scene.add(title);
+
+  /* --- СТЕЛЛАЖ (list) --- */
+  const SLOT=.95,Y0=1.15,Z0=-5.4;
+  boxMesh(8.3,.12,.9,0x2a3a5c,0,Y0-.06,Z0);
+  boxMesh(.14,2.8,.5,0x2a3a5c,-4.05,1.4,Z0);
+  boxMesh(.14,2.8,.5,0x2a3a5c, 4.05,1.4,Z0);
+  boxMesh(8.3,.16,.5,0x2a3a5c,0,2.82,Z0);
+  for(let i=0;i<8;i++){
+    boxMesh(.86,.06,.8,0x3a4f78,-((8-1)*SLOT)/2+i*SLOT,Y0,Z0);
+    const s=new THREE.Sprite(new THREE.SpriteMaterial({map:new THREE.CanvasTexture(textCanvas(String(i),{w:128,h:128,font:"bold 72px monospace",bg:"#0b1220",fg:"#58e6d9"}))}));
+    s.scale.set(.42,.42,1); s.position.set(-((8-1)*SLOT)/2+i*SLOT,.68,-4.85); scene.add(s);
+  }
+  const s1=signPlane("СПИСОК · list = [ ]","изменяемый · упорядоченный",5,1.25);
+  s1.position.set(0,3.35,-5.45); scene.add(s1);
+
+  /* --- ВИТРИНА (tuple, урок 2) --- */
+  boxMesh(2.2,1,1,0x3a2f5c,-4.9,.5,-5.5);
+  const glass=new THREE.Mesh(new THREE.BoxGeometry(2,1.2,.9),
+    new THREE.MeshPhongMaterial({color:0x9adfff,transparent:true,opacity:.13}));
+  glass.position.set(-4.9,1.7,-5.5); scene.add(glass);
+  [[-.6,"x"],[0,"y"],[.6,"z"]].forEach(([dx],i)=>{
+    const it=boxMesh(.4,.4,.4,0x8a7ac8,-4.9+dx,1.45,-5.5,.4); it.material.emissive=new THREE.Color(0x241a44);
+  });
+  const s2=signPlane("КОРТЕЖИ tuple","урок 2 · под стеклом — менять нельзя",3.4,.85);
+  s2.position.set(-4.9,3.1,-5.5); scene.add(s2);
+
+  /* --- ШКАФ (dict, урок 3) --- */
+  boxMesh(2.6,2.2,.8,0x2f4a3a,4.9,1.1,-5.5);
+  [["name","#7ee787"],["age","#ffd479"],["city","#58e6d9"],["plan","#ff9d76"]].forEach(([lbl,cl],i)=>{
+    const fx=4.9+(i%2? .6:-.6), fy=(i<2?1.55:.75);
+    boxMesh(1.1,.55,.08,0x24402f,fx,fy,-5.05,.5);
+    const sp=new THREE.Sprite(new THREE.SpriteMaterial({map:new THREE.CanvasTexture(textCanvas(lbl,{w:256,h:96,font:"bold 52px monospace",bg:"#0b1220",fg:cl}))}));
+    sp.scale.set(.9,.34,1); sp.position.set(fx,fy,-4.95); scene.add(sp);
+  });
+  const s3=signPlane("СЛОВАРИ dict","урок 3 · ящики с именами, а не номерами",3.4,.85);
+  s3.position.set(4.9,3.1,-5.5); scene.add(s3);
+
+  /* --- КОРЗИНА (set, урок 4) --- */
+  const basket=new THREE.Mesh(new THREE.CylinderGeometry(.85,.6,1,16,1,true),
+    new THREE.MeshStandardMaterial({color:0x8a5a2b,side:THREE.DoubleSide,roughness:.9}));
+  basket.position.set(-6,.5,2); scene.add(basket);
+  const s4=signPlane("МНОЖЕСТВА set","урок 4 · только уникальные",2.6,.65);
+  s4.position.set(-6,1.9,2); s4.rotation.y=Math.PI/5; scene.add(s4);
+
+  /* --- СТОЛ С ТЕРМИНАЛОМ --- */
+  boxMesh(2.6,.08,1.1,0x2a3550,0,1.0,6.4);
+  [[-1.2,-.45],[1.2,-.45],[-1.2,.45],[1.2,.45]].forEach(([dx,dz])=>boxMesh(.08,1,.08,0x1c2536,dx,.5,6.4+dz));
+  const mon=signPlane("ТЕРМИНАЛ","нажми TAB",1.7,.95);
+  mon.position.set(0,1.78,6.32); mon.rotation.y=Math.PI; scene.add(mon);
+  boxMesh(1.9,1.1,.06,0x0b1220,0,1.78,6.4);
+
+  /* --- ДОСКА ПАМЯТИ (namespace) --- */
+  boardC=document.createElement("canvas"); boardC.width=1024; boardC.height=560;
+  boardTex=new THREE.CanvasTexture(boardC);
+  const board=new THREE.Mesh(new THREE.PlaneGeometry(5.6,3.05),
+    new THREE.MeshBasicMaterial({map:boardTex}));
+  board.position.set(6.93,2.3,-.8); board.rotation.y=-Math.PI/2; scene.add(board);
+  updateBoard({});
+}
+
+function updateBoard(vars){
+  const g=boardC.getContext("2d");
+  g.fillStyle="#0b1220";g.fillRect(0,0,1024,560);
+  g.strokeStyle="rgba(88,230,217,.6)";g.lineWidth=6;g.strokeRect(6,6,1012,548);
+  g.fillStyle="#58e6d9";g.font="bold 44px monospace";g.textAlign="left";g.textBaseline="alphabetic";
+  g.fillText("ПАМЯТЬ ПРОГРАММЫ",40,68);
+  g.font="36px monospace";let y=140;
+  const names=Object.keys(vars);
+  if(!names.length){g.fillStyle="#5b6b8c";g.fillText("(пусто — переменных ещё нет)",40,y);}
+  for(const n of names){
+    let s; try{s=JSON.stringify(vars[n]);}catch(e){s=String(vars[n]);}
+    if(s.length>32)s=s.slice(0,31)+"…";
+    g.fillStyle="#ffd479";g.fillText(n,40,y);
+    g.fillStyle="#e6f7ff";g.fillText("= "+s,300,y);
+    y+=60; if(y>520)break;
+  }
+  boardTex.needsUpdate=true;
+}
+
+/* --- коробки стеллажа --- */
+function slotX(i){return -((8-1)*.95)/2+i*.95;}
+function addBox(i,val){
+  const b=new THREE.Mesh(new THREE.BoxGeometry(.72,.72,.72),
+    new THREE.MeshStandardMaterial({map:boxTexture(fmtVal(val)),roughness:.5,metalness:.15}));
+  b.position.set(slotX(i),1.55,-5.4); b.scale.set(.01,.01,.01);
+  scene.add(b); shelfBoxes[i]=b;
+  anims.push({t:0,dur:.45,fn:k=>{const s=Math.max(easeOutBack(k),.01);b.scale.set(s,s,s);}});
+}
+function updateBox(i,val){
+  const b=shelfBoxes[i]; if(!b)return;
+  anims.push({t:0,dur:.5,fn:k=>{const s=1+Math.sin(k*Math.PI)*.35;b.scale.set(s,s,s);}});
+  setTimeout(()=>{b.material.map=boxTexture(fmtVal(val));b.material.needsUpdate=true;},240);
+}
+function removeBox(i){
+  const b=shelfBoxes[i]; if(!b)return;
+  anims.push({t:0,dur:.4,fn:k=>{const s=Math.max(1-k,.01);b.scale.set(s,s,s);b.position.y=1.55+k*.6;},
+    done:()=>scene.remove(b)});
+  shelfBoxes[i]=null;
+}
+function syncShelf(arr){
+  arr=(arr||[]).slice(0,8);
+  const old=shelfState;
+  for(let i=0;i<arr.length;i++){
+    if(i>=old.length) addBox(i,arr[i]);
+    else if(JSON.stringify(old[i])!==JSON.stringify(arr[i])) updateBox(i,arr[i]);
+  }
+  for(let i=arr.length;i<old.length;i++) removeBox(i);
+  shelfState=arr.slice();
+}
+
+/* ================= ДВИЖЕНИЕ ================= */
+document.addEventListener("keydown",e=>{
+  keys[e.code]=true;
+  if(e.code==="Tab"){e.preventDefault(); toggleTerminal();}
+});
+document.addEventListener("keyup",e=>keys[e.code]=false);
+addEventListener("resize",()=>{camera.aspect=innerWidth/innerHeight;camera.updateProjectionMatrix();renderer.setSize(innerWidth,innerHeight);});
+
+function updateMove(dt){
+  if(!controls.isLocked)return;
+  vel.x-=vel.x*9*dt; vel.z-=vel.z*9*dt;
+  dirV.z=(keys.KeyW?1:0)-(keys.KeyS?1:0);
+  dirV.x=(keys.KeyD?1:0)-(keys.KeyA?1:0);
+  dirV.normalize();
+  const sp=keys.ShiftLeft?150:85;
+  if(dirV.z||dirV.x){vel.z+=dirV.z*sp*dt; vel.x+=dirV.x*sp*dt;}
+  controls.moveForward(vel.z*dt);
+  controls.moveRight(vel.x*dt);
+  const p=controls.getObject().position;
+  p.x=Math.max(-6.3,Math.min(6.3,p.x));
+  p.z=Math.max(-4.4,Math.min(6.3,p.z));
+  p.y=1.7;
+}
+function animate(){
+  requestAnimationFrame(animate);
+  const t=performance.now(), dt=Math.min((t-prevT)/1000,.05); prevT=t;
+  updateMove(dt);
+  for(let i=anims.length-1;i>=0;i--){
+    const a=anims[i]; a.t+=dt; const k=Math.min(a.t/a.dur,1); a.fn(k);
+    if(k>=1){ if(a.done)a.done(); anims.splice(i,1);}
+  }
+  renderer.render(scene,camera);
+}
+
+/* ================= UI ================= */
+function refreshBlocker(){
+  const closed=el("terminal").classList.contains("hidden") && el("modal").classList.contains("hidden");
+  if(started && !controls.isLocked && closed) el("blocker").classList.remove("hidden");
+}
+function openTerminal(){ el("terminal").classList.remove("hidden"); if(controls.isLocked)controls.unlock(); el("blocker").classList.add("hidden"); }
+function toggleTerminal(){ el("terminal").classList.contains("hidden")?openTerminal():(el("terminal").classList.add("hidden"),refreshBlocker()); }
+function termLog(txt,cls){
+  const d=document.createElement("div"); d.className="tl "+(cls||"out"); d.textContent=txt;
+  el("term-out").appendChild(d); el("term-out").scrollTop=el("term-out").scrollHeight;
+}
+function setObjective(html){ el("objective").innerHTML=html; }
+function addXP(n){ xp+=n; el("xp").textContent="XP "+xp;
+  const t=el("toast"); t.textContent="+"+n+" XP"; t.style.opacity=1; setTimeout(()=>t.style.opacity=0,1200); }
+function openModal(html){ el("modal-card").innerHTML=html; el("modal").classList.remove("hidden"); if(controls.isLocked)controls.unlock(); el("blocker").classList.add("hidden"); }
+function closeModal(){ el("modal").classList.add("hidden"); refreshBlocker(); }
+
+/* ================= ДВИЖОК УРОКА ================= */
+function applyFrame(f){
+  if(f.vars && f.vars.sales!==undefined) syncShelf(f.vars.sales);
+  updateBoard(f.vars||{});
+  if(f.printed) termLog(f.printed.replace(/\n+$/,""),"out");
+}
+async function submit(){
+  if(busy)return;
+  if(!pyReady){termLog("Интерпретатор ещё загружается, секунду…","warn");return;}
+  const code=el("code").value.trim(); if(!code)return;
+  busy=true;
+  termLog("› "+code.split("\n").join("\n› "),"echo");
+  let res;
+  try{ res=JSON.parse(window.run_steps(code,false)); }
+  catch(e){ termLog("Внутренняя ошибка запуска: "+e,"err"); busy=false; return; }
+  for(const f of res.frames){ applyFrame(f); await sleep(400); }
+  if(res.error){ termLog("❌ "+res.error.msg+"   [строка: "+res.error.line+"]","err"); busy=false; return; }
+  const last=res.frames.length?res.frames[res.frames.length-1].vars:{};
+  const printed=res.frames.map(f=>f.printed||"").join("");
+  if(mode==="task"){
+    const T=TASKS[taskIdx];
+    if(T.check(last,printed)){
+      addXP(20); termLog("✅ Верно! "+T.why,"ok");
+      taskIdx++; setTimeout(()=>taskIdx<TASKS.length?showTask():startCase(),1000);
+    } else termLog("Пока не то. Сверься с целью слева или возьми подсказку.","warn");
+  } else if(mode==="case"){
+    if(CASE.check(last,printed)){ addXP(30); termLog("✅ Отлично! "+CASE.why,"ok"); setTimeout(startQuiz,1200); }
+    else termLog("Пока не то. Нужно среднее вторых элементов в переменной avg.","warn");
+  }
+  busy=false;
+}
+function showTask(){
+  mode="task";
+  const T=TASKS[taskIdx];
+  setObjective(`<h3>Шаг 3 · Практика — задание ${taskIdx+1}/${TASKS.length}</h3>${T.goal}<br><span style="color:#5b6b8c;font-size:12px">Состояние списка сохраняется между заданиями — смотри на стеллаж и доску памяти.</span>`);
+  el("code").value=T.starter; openTerminal();
+}
+function startTasks(){
+  window.run_steps("",true); syncShelf([]); updateBoard({});
+  taskIdx=0; showTask();
+  termLog("Твоя очередь. Стеллаж пуст — заполним его заново, теперь сам.","info");
+}
+async function runDemo(){
+  mode="demo"; openTerminal();
+  setObjective(`<h3>Шаг 2 · Демо</h3>Смотри на стеллаж (повернись мышью): каждая строка кода оживит его.`);
+  window.run_steps("",true); syncShelf([]); updateBoard({});
+  for(const L of DEMO){
+    termLog("› "+L.code,"echo");
+    const res=JSON.parse(window.run_steps(L.code,false));
+    for(const f of res.frames){ applyFrame(f); await sleep(450); }
+    if(res.error){ termLog(res.error.msg,"err"); break; }
+    termLog("   "+L.cap,"info");
+    await sleep(700);
+  }
+  termLog("Демо закончено — теперь всё то же самое сделаешь ты.","ok");
+  setTimeout(startTasks,900);
+}
+function startCase(){
+  mode="case";
+  setObjective(`<h3>Шаг 4 · Реальный кейс</h3>${CASE.goal}`);
+  el("code").value=CASE.starter; openTerminal();
+  termLog("Кейс из практики: fetchall() вернул список кортежей — так база отдаёт строки в Python.","info");
+}
+function startQuiz(){
+  mode="quiz"; quizIdx=0; showQuizQ();
+}
+function showQuizQ(){
+  const Q=QUIZ[quizIdx];
+  openModal(`<h2>Шаг 5 · Интервью-чек ${quizIdx+1}/${QUIZ.length}</h2>
+    <p style="white-space:pre-wrap">${Q.q}</p>
+    ${Q.opts.map((o,i)=>`<button class="opt" data-i="${i}">${o}</button>`).join("")}
+    <div id="qwhy" style="margin-top:10px"></div>`);
+  document.querySelectorAll(".opt").forEach(b=>b.onclick=()=>{
+    const i=+b.dataset.i, Q=QUIZ[quizIdx];
+    document.querySelectorAll(".opt").forEach(x=>x.style.pointerEvents="none");
+    if(i===Q.a){ b.classList.add("right"); addXP(10); }
+    else { b.classList.add("wrong"); document.querySelectorAll(".opt")[Q.a].classList.add("right"); }
+    el("qwhy").innerHTML=`<p style="color:#b9c6de">${Q.why}</p>
+      <button id="qnext">${quizIdx+1<QUIZ.length?"Следующий вопрос ▶":"Завершить урок ✔"}</button>`;
+    el("qnext").onclick=()=>{ quizIdx++; quizIdx<QUIZ.length?showQuizQ():finishLesson(); };
+  });
+}
+function finishLesson(){
+  mode="done";
+  openModal(`<h2>Урок 1 пройден 🎉</h2>
+  <p>Итог: <b style="color:#ffd479">${xp} XP</b>. Теперь ты на уровне «умею и понимаю, где применять»:</p>
+  <p>— создавать список и наполнять его (<code>append</code>) — так собирают данные из API и CSV;<br>
+  — править и удалять элементы по индексу — так чистят данные;<br>
+  — агрегировать (<code>sum</code>, <code>len</code>) — так строятся метрики отчётов;<br>
+  — знаешь ловушку со ссылками (<code>b = a</code> не копирует);<br>
+  — знаешь, что <code>fetchall()</code> из SQL возвращает список кортежей.</p>
+  <p style="color:#8fa3c8">Следующий урок — <b>Кортежи</b>: витрина под стеклом слева от стеллажа уже ждёт.</p>
+  <button id="again">Остаться поэкспериментировать</button>`);
+  el("again").onclick=()=>{closeModal();controls.lock();};
+}
+
+/* ================= СТАРТ ================= */
+el("play").onclick=()=>{
+  started=true; el("blocker").classList.add("hidden");
+  openModal(THEORY_HTML);
+  el("theoryGo").onclick=()=>{
+    closeModal(); controls.lock();
+    setObjective(`<h3>Шаг 2 · Демо</h3>Подойди к стеллажу и запусти демонстрацию.<br><button id="demoBtn">▶ Запустить демо</button>`);
+  };
+};
+el("blocker").addEventListener("click",e=>{ if(started && e.target.id==="blocker") controls.lock(); });
+el("objective").addEventListener("click",e=>{ if(e.target.id==="demoBtn") runDemo(); });
+el("run").onclick=submit;
+el("code").addEventListener("keydown",e=>{
+  if(e.ctrlKey && e.code==="Enter"){ e.preventDefault(); submit(); }
+  e.stopPropagation();
+});
+el("hint").onclick=()=>{
+  const cur = mode==="task"?TASKS[taskIdx]: mode==="case"?CASE:null;
+  termLog(cur?("💡 "+cur.hint):"💡 Сначала открой задание (TAB — терминал).","warn");
+};
+el("solve").onclick=()=>{
+  const cur = mode==="task"?TASKS[taskIdx]: mode==="case"?CASE:null;
+  if(cur){ el("code").value=cur.solution; termLog("Решение подставлено в редактор. Разбери его построчно, прежде чем выполнять.","info"); }
+};
+setObjective(`<h3>Шаг 1 · Теория</h3>Сначала короткая теория — что такое список и где он нужен аналитику.`);
+
+buildWorld(); animate();
+window.addEventListener("load",()=>{ try{ brython({debug:0}); }catch(e){} });
+const pyPoll=setInterval(()=>{
+  if(window.run_steps){ pyReady=true; clearInterval(pyPoll);
+    el("term-status").textContent="Python готов";
+    termLog("Интерпретатор Python загружен. Всё, что ты напишешь, — настоящий Python.","ok");
+  }
+},300);
+setTimeout(()=>{ if(!pyReady) el("term-status").textContent="Python не загрузился — нужен интернет (CDN)"; },9000);
+</script>
+</body>
+</html>
